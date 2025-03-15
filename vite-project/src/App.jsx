@@ -27,7 +27,7 @@ const appRouter = createBrowserRouter([
   },
   { path: "/signup", element: <Signup /> },
   { path: "/signin", element: <Signin /> },
-  { path: "/getMeets/:meet_ID", element: <GetMeet /> }, // Fixed Route
+  { path: "/getMeets/:meet_ID", element: <VideoMeet /> }, // Fixed Route
 ]);
 
 function App() {
