@@ -20,7 +20,7 @@ const userVideo = useRef(null); // Initialize with null
 
     useEffect(() => {
         navigator.mediaDevices
-            .getUserMedia({ video: true, audio: true })
+            .getUserMedia({ video:{ facingMode: "user" }, audio: true })
             .then((currentStream) => {
                 setStream(currentStream);
                 if (myVideo.current) {

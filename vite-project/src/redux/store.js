@@ -1,6 +1,7 @@
 import { configureStore, combineReducers } from "@reduxjs/toolkit";
 import authSlice from "./AuthSlice.js";
 
+import meetslice from "./MeetSlice.js";
 import storage from "redux-persist/lib/storage";
 import { persistReducer, persistStore } from "redux-persist";
 import {
@@ -22,6 +23,8 @@ const persistConfig = {
 // Combine reducers
 const rootReducer = combineReducers({
   authStore: authSlice, // Ensure this is correctly exported from AuthSlice.js
+  // Add other reducers here if needed
+  meetStore: meetslice,
 });
 
 // Apply persistReducer

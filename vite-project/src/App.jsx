@@ -12,6 +12,7 @@ import Activity from "./Pages/Activity.jsx";
 import NewMeet from "./Pages/NewMeet.jsx";
 import GetMeet from "./Pages/GetMeet.jsx";
 import VideoMeet from "./Pages/VideoMeet.jsx";
+import PreviewVideo from "./Pages/PreviewVideo.jsx";
 
 const appRouter = createBrowserRouter([
   {
@@ -28,6 +29,7 @@ const appRouter = createBrowserRouter([
   { path: "/signup", element: <Signup /> },
   { path: "/signin", element: <Signin /> },
   { path: "/getMeets/:meet_ID", element: <VideoMeet /> }, // Fixed Route
+  {path:"/preview/:meet_ID", element:<PreviewVideo/>}
 ]);
 
 function App() {

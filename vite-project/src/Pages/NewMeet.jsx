@@ -1,23 +1,65 @@
 import React, { useState } from "react";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import axios from "axios";
 import { Dialog, DialogContent } from "@mui/material";
 import { useNavigate } from "react-router-dom";
+import {
+  setMeetId,
+  setMeetOwnerId,
+  setMeetName,
+  setMeetDescription,
+  setMeetDate,
+  setMeetOwner,
+  setMeetParticipants,
+  setMeetType,
+  setMeetStatus,
+} from "../redux/MeetSlice.js";
+
+const createMeet = (meetData, navigate) => async (dispatch) => {
+  try {
+    console.log("Sending Meet Data:", meetData); // ✅ Debugging API request
+
+    const res = await axios.post("http://localhost:3000/api/user/newmeet", meetData, {
+      headers: { "Content-Type": "application/json" },
+      withCredentials: true,
+    });
+
+    console.log("Response from server:", res.data); // ✅ Debugging server response
+
+    const meet_ID = res.data.meet.meet_Id;
+
+    dispatch(setMeetId(meet_ID));
+    dispatch(setMeetName(meetData.title));
+    dispatch(setMeetDescription(meetData.caption));
+    dispatch(setMeetDate(meetData.time));
+    dispatch(setMeetOwner(meetData.host_username));
+    dispatch(setMeetOwnerId(meetData.host_id));
+    dispatch(setMeetParticipants(meetData.attendees));
+    dispatch(setMeetType(meetData.meet_type)); // ✅ Ensure meet type is stored in Redux
+    dispatch(setMeetStatus("active"));
+
+    navigate(`/preview/${meet_ID}`); // ✅ Moved this outside Redux action
+  } catch (error) {
+    console.error("Error while creating meet:", error);
+  }
+};
 
 const NewMeet = ({ openCreate, setOpenCreate }) => {
+  const dispatch = useDispatch();
   const navigate = useNavigate();
   const [title, setTitle] = useState("");
   const [caption, setCaption] = useState("");
   const [time, setTime] = useState("");
-  const [meetType, setMeetType] = useState("private");
+  const [meetType, setMeetType] = useState("private"); // ✅ Ensure default value
   const [attendees, setAttendees] = useState([]);
   const [newAttendee, setNewAttendee] = useState("");
 
-  const host_id = String(useSelector((state) => state.authStore.user?.UID));
+  const host_id = useSelector((state) => state.authStore.user?.UID) || "";
+  const host_username = useSelector((state) => state.authStore.user?.username) || "";
 
   const handleAddAttendee = () => {
-    if (newAttendee) {
-      setAttendees([...attendees, newAttendee]);
+    if (newAttendee.trim() && !attendees.includes(newAttendee)) {
+      setAttendees([...attendees, newAttendee.trim()]);
       setNewAttendee("");
     }
   };
@@ -26,7 +68,7 @@ const NewMeet = ({ openCreate, setOpenCreate }) => {
     setAttendees(attendees.filter((attendee) => attendee !== attendeeToRemove));
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
 
     if (!title || !time) {
@@ -39,36 +81,20 @@ const NewMeet = ({ openCreate, setOpenCreate }) => {
       return;
     }
 
-    try {
-      const res = await axios.post(
-        "http://localhost:3000/api/user/newmeet",
-        {
-          title,
-          caption,
-          time,
-          meet_type: meetType,
-          attendees,
-          host_id,
-        },
-        {
-          headers: { "Content-Type": "application/json" },
-          withCredentials: true,
-        }
-      );
+    const meetData = {
+      title,
+      caption,
+      time,
+      meet_type: meetType, // ✅ Ensuring meet_type is included
+      attendees,
+      host_id,
+      host_username,
+    };
 
-      console.log("Response from server:", res);
-      const meet_ID = res.data.meet.meet_Id;
-      console.log("meet_ID:", meet_ID);
-      setOpenCreate(false);
-      console.log("Meet created successfully");
-      if (meet_ID) {
-        navigate(`/getMeets/${meet_ID}`);
-      } else {
-        console.error("meet_ID is undefined:", res);
-      }
-    } catch (error) {
-      console.log("Error while creating meet", error);
-    }
+    console.log("Submitting Meet Data:", meetData); // ✅ Debugging frontend data before sending
+
+    dispatch(createMeet(meetData, navigate));
+    setOpenCreate(false);
   };
 
   return (
@@ -125,7 +151,7 @@ const NewMeet = ({ openCreate, setOpenCreate }) => {
                 className="flex-1 p-2 border rounded-md"
                 value={newAttendee}
                 onChange={(e) => setNewAttendee(e.target.value)}
-                onKeyPress={(e) => e.key === "Enter" && (e.preventDefault(), handleAddAttendee())}
+                onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleAddAttendee())}
               />
               <button
                 type="button"
@@ -145,7 +171,7 @@ const NewMeet = ({ openCreate, setOpenCreate }) => {
                   className="ml-2 text-red-500 hover:text-red-700"
                   onClick={() => handleRemoveAttendee(attendee)}
                 >
-                  &times;
+                  ×
                 </button>
               </div>
             ))}
