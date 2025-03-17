@@ -11,7 +11,7 @@ const router = express.Router();
 router.get('/getMeets/:meet_ID', getMeets);
 
 router.post('/getAllMeets', isAuthenticated, getAllMeets);
-router.get('/getProfile', getProfile);    
-router.post('/newmeet', newMeet);
+router.get('/getProfile',isAuthenticated, getProfile);    
+router.post('/newmeet', isAuthenticated, newMeet);
 
 export default router;

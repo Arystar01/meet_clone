@@ -35,6 +35,9 @@ const Signin = () => {
       );
 
       console.log("Signin Response:", res.data);
+      // console.log("Signin Response Status:", res.status);
+      //  prointing the cookie
+      // console.log("Signin Response Cookies:", res.headers["set-cookie"]);
 
       if (res.status === 200) {
         dispatch(setIsAuthenticated(true)); // ✅ Correct dispatch syntax

@@ -36,15 +36,55 @@ const io = new Server(server, {
         credentials: true,
     },
 });
+let rooms = {};
 
 io.on("connection", (socket) => {
     socket.emit("me", socket.id);
 
-    // User disconnects
-    socket.on("disconnect", () => {
-        socket.broadcast.emit("callEnded");
-    });
+   // When a user joins a room
+socket.on("joinRoom", ({ meetid, userId, micOn, videoOn }) => {
+    socket.join(meetid);
+    if (!rooms[meetid]) {
+        rooms[meetid] = [];
+    }
+    rooms[meetid].push({ userId, socketId: socket.id, micOn, videoOn });
 
+    console.log(`${userId} joined room: ${meetid}`);
+
+    // Notify other users in the room
+    socket.broadcast.to(meetid).emit("userJoined", { userId, socketId: socket.id, micOn, videoOn });
+});
+
+// Handle user disconnecting
+socket.on("disconnect", () => {
+    // Find the room that the user was in
+    for (let room in rooms) {
+        const roomIndex = rooms[room].findIndex(user => user.socketId === socket.id);
+        if (roomIndex !== -1) {
+            rooms[room].splice(roomIndex, 1); // Remove the user from the room
+
+            // Notify others in the room that this user has left
+            socket.broadcast.to(room).emit("userLeft", { socketId: socket.id });
+
+            // If no one is left in the room, you can delete the room
+            if (rooms[room].length === 0) {
+                delete rooms[room];
+            }
+
+            break;
+        }
+    }
+
+    socket.broadcast.emit("callEnded");
+});
+
+    socket.on('checkRoom', (userId) => {
+        // Assuming 'room' is based on a user's id or some other identifier
+        const room = rooms[userId]; // Adjust this to match how you track rooms
+        if (room) {
+          io.to(room).emit('roomStatus', io.sockets.adapter.rooms.get(room));
+        }
+      });
     // Handle incoming call from a user
     socket.on("callUser", ({ userToCall, signalData, from, name }) => {
         io.to(userToCall).emit("callUser", { signal: signalData, from, name });

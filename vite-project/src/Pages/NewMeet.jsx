@@ -50,7 +50,7 @@ const NewMeet = ({ openCreate, setOpenCreate }) => {
   const [title, setTitle] = useState("");
   const [caption, setCaption] = useState("");
   const [time, setTime] = useState("");
-  const [meetType, setMeetType] = useState("private"); // ✅ Ensure default value
+  const [meetType, setMeetType] = useState("public"); // ✅ Ensure default value
   const [attendees, setAttendees] = useState([]);
   const [newAttendee, setNewAttendee] = useState("");
 

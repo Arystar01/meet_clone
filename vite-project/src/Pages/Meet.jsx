@@ -3,9 +3,21 @@ import axios from "axios";
 import NewMeet from "./NewMeet.jsx";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
+import { useDispatch } from "react-redux";
+import {
+  setMeetId,
+  setMeetName,
+  setMeetDescription,
+  setMeetDate,
+  setMeetOwner,
+setMeetParticipants,
+  setMeetType,
+ 
+} from "../redux/MeetSlice.js";
 
 const Meet = () => {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const [meetingCode, setMeetingCode] = useState("");
   const [openCreate, setOpenCreate] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -26,9 +38,18 @@ const Meet = () => {
       setLoading(true);
       setError("");
       const meet_ID = meetingCode.trim();
-      const res = await axios.get(`http://localhost:3000/api/user/getMeets/${meet_ID}?UID=${UID}`);
-      // console.log("meet ", res.data);
-      navigate(`/getMeets/${meetingCode}`);
+      const res = await axios.get(`http://localhost:3000/api/user/getMeets/${meet_ID}?UID=${UID}`, {
+        withCredentials: true,
+      });
+      console.log("meet ", res);
+      dispatch(setMeetId(res.data.meet.meet_Id));
+      dispatch(setMeetName(res.data.meet.title));
+      dispatch(setMeetDescription(res.data.meet.caption));
+      dispatch(setMeetOwner(res.data.meet.host_username));
+      dispatch(setMeetParticipants(res.data.meet.attendees));
+      dispatch(setMeetType(res.data.meet.meet_type));
+      dispatch(setMeetDate(res.data.meet.time))
+      navigate(`/preview/${meetingCode}`);
     } catch (error) {
       console.error("Error while joining meet", error);
       setError("Failed to join the meeting. Please try again.");

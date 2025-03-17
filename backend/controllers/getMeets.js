@@ -31,10 +31,10 @@ export const getMeets = async (req, res) => {
         }
 
         // Check if the user is an attendee or if the meet is public
-        // const isAttendee = meet.attendees.includes(user.email) || meet.meet_type === "public";
-        // if (!isAttendee) {
-        //     return res.status(403).json({ message: "You are not an attendee of this meet" });
-        // }
+        const isAttendee = meet.attendees.includes(user.email) || meet.meet_type === "public";
+        if (!isAttendee) {
+            return res.status(403).json({ message: "You are not an attendee of this meet" });
+        }
 
         res.status(200).json({ meet });
         // console.log("Meet data sent to client:", meet);

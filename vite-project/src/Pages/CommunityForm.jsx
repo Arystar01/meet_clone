@@ -21,7 +21,9 @@ const CommunityForm = ({openBox, setOpenBox, selectedTemplate}) => {
                 "http://localhost:3000/api/community/create", {
                     communityName: nameid,
                     descriptionText: description
-                }
+                },
+                {withCredentials: true}
+                
             );
             console.log(res);
             if(res.status === 201){

@@ -35,7 +35,10 @@ const meetslice= createSlice({
             state.meet_owner=action.payload;
         },
         setMeetParticipants:(state, action)=>{
-            state.meet_participants=action.payload;
+            const newParticipant = action.payload;
+            if (!state.meet_participants.includes(newParticipant)) {
+                state.meet_participants.push(newParticipant);
+            }
         },
         setMeetType:(state, action)=>{
             state.meet_type=action.payload;
