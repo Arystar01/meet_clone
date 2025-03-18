@@ -1,9 +1,7 @@
-import { createContext, useState, useRef, useEffect } from "react";
-import React from "react";
+import React, { createContext, useState, useRef, useEffect } from "react";
 import { io } from "socket.io-client";
 
-// Initialize the socket connection
-const socket = io("http://localhost:3000");
+const socket = io("http://localhost:3000"); // Initialize once here
 const SocketContext = createContext();
 
 const ContextProvider = ({ children }) => {
@@ -18,9 +16,7 @@ const ContextProvider = ({ children }) => {
   const connectionRef = useRef(null);
   const peerConnectionRef = useRef(null);
 
-  // Initialize media stream and handle socket events
   useEffect(() => {
-    // Get user media for video/audio
     navigator.mediaDevices
       .getUserMedia({ video: { facingMode: "user" }, audio: true })
       .then((currentStream) => {
@@ -37,8 +33,39 @@ const ContextProvider = ({ children }) => {
     // Listen for socket events
     socket.on("me", (id) => setMe(id));
 
+    socket.on("userRaisedHand", ({ meetid, userId }) => {
+      console.log(`${userId} has raised their hand in room: ${meetid}`);
+      // You can update the UI to show the user raised their hand
+      console.log(meetid);
+    });
+
+    socket.on("userLoweredHand", ({ meetid, userId }) => {
+      console.log(`${userId} has lowered their hand in room: ${meetid}`);
+      console.log(meetid);
+      // You can update the UI to show the user lowered their hand
+    });
+
     socket.on("callUser", ({ from, name: callerName, signal }) => {
       setCall({ isReceivedCall: true, from, name: callerName, signal });
+    });
+
+    socket.on("callAccepted", (signal) => {
+      setCallAccepted(true);
+      const peerConnection = createPeerConnection(false, stream);
+      peerConnection.setRemoteDescription(new RTCSessionDescription(signal));
+      connectionRef.current = peerConnection;
+      peerConnectionRef.current = peerConnection;
+    });
+
+    socket.on("callEnded", () => {
+      setCallEnded(true);
+      if (peerConnectionRef.current) {
+        peerConnectionRef.current.close();
+        peerConnectionRef.current = null;
+      }
+      if (userVideo.current) {
+        userVideo.current.srcObject = null;
+      }
     });
 
     socket.on("iceCandidate", (candidate) => {
@@ -47,36 +74,43 @@ const ContextProvider = ({ children }) => {
       }
     });
 
+    socket.on("disconnect", () => {
+      console.log("Socket disconnected from ContextProvider");
+      // Potentially handle reconnection logic here
+    });
+
     return () => {
       socket.off("me");
       socket.off("callUser");
+      socket.off("callAccepted");
+      socket.off("callEnded");
       socket.off("iceCandidate");
+      socket.off("userRaisedHand");
+      socket.off("userLoweredHand");
+      socket.off("disconnect");
     };
   }, []);
 
-
-    // Create a new peer connection with WebRTC APIs
-  const createPeerConnection = (isInitiator, stream) => {
+  const createPeerConnection = (isInitiator, currentStream) => {
     const configuration = {
       iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: "stun:stun.l.google.com:19302" },
         {
-          urls: 'turn:192.158.29.39:3478?transport=udp',
-          username: '28224511:1379330808',
-          credential: 'JZEOEt2V3Qb0y27GRntt2u2PAYA=',
+          urls: "turn:192.158.29.39:3478?transport=udp",
+          username: "28224511:1379330808",
+          credential: "JZEOEt2V3Qb0y27GRntt2u2PAYA=",
         },
         {
-          urls: 'turn:192.158.29.39:3478?transport=tcp',
-          username: '28224511:1379330808',
-          credential: 'JZEOEt2V3Qb0y27GRntt2u2PAYA=',
+          urls: "turn:192.158.29.39:3478?transport=tcp",
+          username: "28224511:1379330808",
+          credential: "JZEOEt2V3Qb0y27GRntt2u2PAYA=",
         },
       ],
     };
 
     const peerConnection = new RTCPeerConnection(configuration);
 
-    // Add tracks to peer connection
-    stream.getTracks().forEach((track) => peerConnection.addTrack(track, stream));
+    currentStream.getTracks().forEach((track) => peerConnection.addTrack(track, currentStream));
 
     peerConnection.onicecandidate = (event) => {
       if (event.candidate) {
@@ -93,7 +127,6 @@ const ContextProvider = ({ children }) => {
 
   const answerCall = () => {
     setCallAccepted(true);
-
     const peerConnection = createPeerConnection(false, stream);
     peerConnection.setRemoteDescription(new RTCSessionDescription(call.signal));
 
@@ -127,18 +160,33 @@ const ContextProvider = ({ children }) => {
 
     connectionRef.current = peerConnection;
     peerConnectionRef.current = peerConnection;
+    console.log("Call initiated");
   };
 
   const leaveCall = () => {
     setCallEnded(true);
     if (peerConnectionRef.current) {
       peerConnectionRef.current.close();
+      peerConnectionRef.current = null;
     }
-
+    if (myVideo.current) {
+      myVideo.current.srcObject = null;
+    }
+    if (userVideo.current) {
+      userVideo.current.srcObject = null;
+    }
     setStream(null);
     setCall(null);
     setCallAccepted(false);
     setCallEnded(false);
+  };
+
+  const raiseHand = (meetid, userId) => {
+    socket.emit("userRaisedHand", { meetid, userId });
+  };
+
+  const lowerHand = (meetid, userId) => {
+    socket.emit("userLoweredHand", { meetid, userId });
   };
 
   return (
@@ -160,6 +208,9 @@ const ContextProvider = ({ children }) => {
         setCallAccepted,
         setCallEnded,
         me,
+        socket,
+        raiseHand,
+        lowerHand,
       }}
     >
       {children}

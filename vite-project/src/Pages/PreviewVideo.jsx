@@ -1,12 +1,9 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useContext } from "react";
 import { FaMicrophone, FaMicrophoneSlash, FaVideo, FaVideoSlash } from "react-icons/fa";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
-import { useDispatch } from "react-redux";
 import { setMeetParticipants } from "../redux/MeetSlice.js";
-import { io } from "socket.io-client"; // Import the io function from socket.io-client
-import  { SocketContext } from "./SocketContext.jsx";
-import { useContext } from "react";
+import { SocketContext } from "./SocketContext.jsx";
 
 const PreviewVideo = () => {
   const [stream, setStream] = useState(null);
@@ -18,28 +15,11 @@ const PreviewVideo = () => {
   const [date, setDate] = useState("");
   const [owner, setOwner] = useState("");
   const userId = useSelector((state) => state.authStore.user?.email);
-  const existingParticipants = useSelector((state) => state.meetStore.meetParticipants) || [];
-
-  const { callUser } = useContext(SocketContext);
+  const { socket, callUser } = useContext(SocketContext);
   const myVideo = useRef(null);
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const meetStore = useSelector((state) => state.meetStore);
-
-  // Socket initialization
-  const socket = useRef(null);
-
-  useEffect(() => {
-    // Initialize socket connection
-    socket.current = io("http://localhost:3000"); // Replace with your backend URL if needed
-
-    // Cleanup socket on component unmount
-    return () => {
-      if (socket.current) {
-        socket.current.disconnect();
-      }
-    };
-  }, []);
 
   useEffect(() => {
     if (meetStore) {
@@ -69,7 +49,7 @@ const PreviewVideo = () => {
 
     return () => {
       if (currentStream) {
-        currentStream.getTracks().forEach(track => track.stop());
+        currentStream.getTracks().forEach((track) => track.stop());
       }
     };
   }, []);
@@ -95,17 +75,16 @@ const PreviewVideo = () => {
   };
 
   const handleJoinMeeting = () => {
-    // Dispatch participant data to the Redux store
     dispatch(setMeetParticipants(userId));
 
-    // Emit socket event for joining the meeting
-    if (socket.current) {
-      socket.current.emit("joinRoom", {
-        meetid:meetStore.meet_id,
+    if (socket) {
+      socket.emit("joinRoom", {
+        meetid: meetStore.meet_id,
         userId,
         micOn,
         videoOn,
       });
+      console.log("Emitted 'joinRoom' via context socket");
     }
     callUser(meetid);
     // Navigate to the meeting page with state

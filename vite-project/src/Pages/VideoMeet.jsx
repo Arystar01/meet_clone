@@ -6,13 +6,19 @@ import {
   FaMicrophoneSlash,
   FaVideoSlash,
 } from "react-icons/fa";
+import { FaHandPaper } from "react-icons/fa";
+import { TbHandOff } from "react-icons/tb";
+import { useSelector } from "react-redux";
 
 const VideoMeet = ({ userMicon, userVideoon }) => {
-  const { myVideo, userVideo } = useContext(SocketContext);
+  const { myVideo, userVideo, raiseHand, lowerHand } = useContext(SocketContext);
   const streamRef = useRef(null); // Store stream without causing re-renders
   const [videoOn, setVideoOn] = useState(userVideoon);
   const [micOn, setMicOn] = useState(userMicon);
   const [displayUser, setDisplayUser] = useState(false);
+  const [handRaised, setHandRaised] = useState(false);
+  const { meetStore } = useSelector((state) => state);
+  const { authStore } = useSelector((state) => state);
 
   useEffect(() => {
     navigator.mediaDevices
@@ -55,9 +61,28 @@ const VideoMeet = ({ userMicon, userVideoon }) => {
     }
   };
 
+  const handleRaiseHand = () => {
+    const meetid = meetStore.meet_id; // Meeting ID
+    const userId = authStore.user.email; // User's ID
+    if (meetid && userId) {
+      raiseHand(meetid, userId);
+      setHandRaised(true);
+    }
+  };
+
+  const handleLowerHand = () => {
+    const meetid = meetStore.meet_id; // Meeting ID
+    const userId = authStore.user.email; // User's ID
+    if (meetid && userId) {
+      lowerHand(meetid, userId);
+      setHandRaised(false);
+    }
+  };
+
   return (
     <div className="flex flex-col justify-center items-center gap-6 p-6 bg-purple-300 h-screen">
-      <div className="grid grid-cols-2 justify-center  items-center gap-6 p-6">
+            <div className="grid grid-cols-2 justify-center  items-center gap-6 p-6">
+      {/* <div className="grid grid-cols-1 md:grid-cols-2 justify-center items-center gap-6 p-6"> */}
         <div className="border-2 border-black p-4 rounded-lg shadow-lg bg-white w-full max-w-md">
           <h2 className="text-lg font-semibold text-gray-800 mb-2">My Video</h2>
           <div className="w-full aspect-video bg-black rounded-md overflow-hidden">
@@ -116,6 +141,22 @@ const VideoMeet = ({ userMicon, userVideoon }) => {
           {micOn ? <FaMicrophoneSlash /> : <FaMicrophone />}
           {micOn ? "Mute" : "Unmute"}
         </button>
+
+        {handRaised ? (
+          <button
+            onClick={handleLowerHand}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-lg shadow-md transition text-white font-medium bg-red-500 hover:bg-red-600"
+          >
+            <FaHandPaper /> Lower Hand
+          </button>
+        ) : (
+          <button
+            onClick={handleRaiseHand}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-lg shadow-md transition text-white font-medium bg-green-500 hover:bg-green-600"
+          >
+            <TbHandOff /> Raise Hand
+          </button>
+        )}
       </div>
     </div>
   );
