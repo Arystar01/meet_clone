@@ -128,6 +128,13 @@ io.on("connection", (socket) => {
     io.to(data.to).emit("callAccepted", data.signal);
   });
 
+socket.on("callEnded", () => {
+    console.log(`[LEAVE CALL] User ${socket.id} is leaving the call.`);
+    // Inform the other peer that the call has ended gracefully
+    socket.broadcast.emit("callEnded");
+    // You might want to perform additional cleanup here if needed
+});
+
   // ICE Candidate Handling (forwarding the ICE candidates)
   socket.on("iceCandidate", ({ candidate, to }) => {
     socket.to(to).emit("newIceCandidate", candidate);

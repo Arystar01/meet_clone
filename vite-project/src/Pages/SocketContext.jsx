@@ -17,32 +17,16 @@ const ContextProvider = ({ children }) => {
   const peerConnectionRef = useRef(null);
 
   useEffect(() => {
-    navigator.mediaDevices
-      .getUserMedia({ video: { facingMode: "user" }, audio: true })
-      .then((currentStream) => {
-        setStream(currentStream);
-        if (myVideo.current) {
-          myVideo.current.srcObject = currentStream;
-        }
-      })
-      .catch((err) => {
-        console.error("Error accessing media devices:", err);
-        alert("Could not access media devices.");
-      });
-
-    // Listen for socket events
     socket.on("me", (id) => setMe(id));
 
     socket.on("userRaisedHand", ({ meetid, userId }) => {
       console.log(`${userId} has raised their hand in room: ${meetid}`);
-      // You can update the UI to show the user raised their hand
       console.log(meetid);
     });
 
     socket.on("userLoweredHand", ({ meetid, userId }) => {
       console.log(`${userId} has lowered their hand in room: ${meetid}`);
       console.log(meetid);
-      // You can update the UI to show the user lowered their hand
     });
 
     socket.on("callUser", ({ from, name: callerName, signal }) => {
@@ -51,10 +35,14 @@ const ContextProvider = ({ children }) => {
 
     socket.on("callAccepted", (signal) => {
       setCallAccepted(true);
-      const peerConnection = createPeerConnection(false, stream);
+      const peerConnection = createPeerConnection(false); // Pass no initial stream
       peerConnection.setRemoteDescription(new RTCSessionDescription(signal));
       connectionRef.current = peerConnection;
       peerConnectionRef.current = peerConnection;
+      // If stream exists now, add tracks
+      if (stream) {
+        stream.getTracks().forEach((track) => peerConnection.addTrack(track, stream));
+      }
     });
 
     socket.on("callEnded", () => {
@@ -76,7 +64,6 @@ const ContextProvider = ({ children }) => {
 
     socket.on("disconnect", () => {
       console.log("Socket disconnected from ContextProvider");
-      // Potentially handle reconnection logic here
     });
 
     return () => {
@@ -89,9 +76,27 @@ const ContextProvider = ({ children }) => {
       socket.off("userLoweredHand");
       socket.off("disconnect");
     };
-  }, []);
+  }, [stream]); // Re-run effect if stream changes
 
-  const createPeerConnection = (isInitiator, currentStream) => {
+  const getLocalStream = async () => {
+    try {
+      const currentStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "user" },
+        audio: true,
+      });
+      setStream(currentStream);
+      if (myVideo.current) {
+        myVideo.current.srcObject = currentStream;
+      }
+      return currentStream;
+    } catch (err) {
+      console.error("Error accessing media devices:", err);
+      alert("Could not access media devices.");
+      return null;
+    }
+  };
+
+  const createPeerConnection = (isInitiator) => {
     const configuration = {
       iceServers: [
         { urls: "stun:stun.l.google.com:19302" },
@@ -110,7 +115,9 @@ const ContextProvider = ({ children }) => {
 
     const peerConnection = new RTCPeerConnection(configuration);
 
-    currentStream.getTracks().forEach((track) => peerConnection.addTrack(track, currentStream));
+    if (stream) {
+      stream.getTracks().forEach((track) => peerConnection.addTrack(track, stream));
+    }
 
     peerConnection.onicecandidate = (event) => {
       if (event.candidate) {
@@ -125,33 +132,40 @@ const ContextProvider = ({ children }) => {
     return peerConnection;
   };
 
-  const answerCall = () => {
+  const answerCall = async () => {
+    const currentStream = stream || (await getLocalStream());
+    if (!currentStream) return;
+
     setCallAccepted(true);
-    const peerConnection = createPeerConnection(false, stream);
+    const peerConnection = createPeerConnection(false);
     peerConnection.setRemoteDescription(new RTCSessionDescription(call.signal));
 
-    peerConnection
-      .createAnswer()
-      .then((answer) => {
-        peerConnection.setLocalDescription(answer);
-        socket.emit("answerCall", { signal: answer, to: call.from });
-      })
-      .catch((err) => console.error("Error creating answer:", err));
+    try {
+      const answer = await peerConnection.createAnswer();
+      await peerConnection.setLocalDescription(answer);
+      socket.emit("answerCall", { signal: answer, to: call.from });
+    } catch (err) {
+      console.error("Error creating answer:", err);
+    }
 
     connectionRef.current = peerConnection;
     peerConnectionRef.current = peerConnection;
   };
 
-  const callUser = (id) => {
-    const peerConnection = createPeerConnection(true, stream);
+  const callUser = async (id) => {
+    const currentStream = stream || (await getLocalStream());
+    if (!currentStream) return;
 
-    peerConnection
-      .createOffer()
-      .then((offer) => peerConnection.setLocalDescription(offer))
-      .then(() => {
-        socket.emit("callUser", { from: me, signalData: peerConnection.localDescription, userToCall: id, name });
-      })
-      .catch((err) => console.error("Error creating offer:", err));
+    const peerConnection = createPeerConnection(true);
+
+    try {
+      const offer = await peerConnection.createOffer();
+      await peerConnection.setLocalDescription(offer);
+      socket.emit("callUser", { from: me, signalData: peerConnection.localDescription, userToCall: id, name });
+    } catch (err) {
+      console.error("Error creating offer:", err);
+      return;
+    }
 
     socket.on("callaccepted", (signal) => {
       setCallAccepted(true);
@@ -179,6 +193,7 @@ const ContextProvider = ({ children }) => {
     setCall(null);
     setCallAccepted(false);
     setCallEnded(false);
+    socket.emit("callEnded", { to: call.from });
   };
 
   const raiseHand = (meetid, userId) => {
@@ -211,6 +226,7 @@ const ContextProvider = ({ children }) => {
         socket,
         raiseHand,
         lowerHand,
+        getLocalStream, // Expose the function to get the local stream
       }}
     >
       {children}
